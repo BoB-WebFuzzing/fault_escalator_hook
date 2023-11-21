@@ -213,6 +213,27 @@ ssize_t read(int fd, void *buf, size_t count)
     return result;
 }
 
+#define CHECK_FILE_VULN "/etc/passwd"
+
+int access(const char *pathname, int mode) {
+    int (*original_access)(const char *, int);
+    original_access = dlsym(RTLD_NEXT, "access");
+
+    // 후킹할 동작 추가
+    printf("Intercepted access to file: %s\n", pathname);
+
+    // "/etc/passwd" 확인
+    char *check = strstr(pathname, CHECK_FILE_VULN);
+    if(check != NULL){
+        SendSignal();
+        printf("\n%s Done \n", pathname);
+    }
+
+    // 원래의 access 함수 호출
+    return original_access(pathname, mode);
+}
+
+/*
 int openat(int dirfd, const char *pathname, int flags, ...)
 {
     // 원본 openat 함수를 불러옵니다.
@@ -241,7 +262,7 @@ int openat(int dirfd, const char *pathname, int flags, ...)
     // 원본 openat 함수를 호출합니다.
     return original_openat(dirfd, pathname, flags, mode);
 }
-
+*/
 bool pattern_in_bytes(unsigned char *target, int target_len, unsigned char *pattern, int pattern_len)
 {
     if (target_len <= pattern_len)
