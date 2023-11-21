@@ -5,8 +5,8 @@
 #include <string.h>
 #include <stdarg.h>
 #include <signal.h>
-#include <fcntl.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 int (*original_openat)(int dirfd, const char *pathname, int flags, ...);
 
@@ -213,25 +213,40 @@ ssize_t read(int fd, void *buf, size_t count)
     return result;
 }
 
+
 #define CHECK_FILE_VULN "/etc/passwd"
 
-int access(const char *pathname, int mode) {
-    int (*original_access)(const char *, int);
-    original_access = dlsym(RTLD_NEXT, "access");
+// 파일 열기 플래그에 대한 상수 정의
+#define O_CREAT 0100
+
+// 파일 모드에 대한 타입 정의 (단순히 int로 가정)
+typedef int mode_t;
+
+int open(const char *pathname, int flags, ...) {
+    int (*original_open)(const char *, int, ...);
+    original_open = dlsym(RTLD_NEXT, "open");
 
     // 후킹할 동작 추가
-    printf("Intercepted access to file: %s\n", pathname);
+    printf("Intercepted open of file: %s\n", pathname);
 
     // "/etc/passwd" 확인
-    char *check = strstr(pathname, CHECK_FILE_VULN);
-    if(check != NULL){
+    if (strstr(pathname, CHECK_FILE_VULN) != NULL) {
+        printf("%s Done\n", pathname);
         SendSignal();
-        printf("\n%s Done \n", pathname);
     }
 
-    // 원래의 access 함수 호출
-    return original_access(pathname, mode);
+    // 원래의 open 함수 호출
+    if (flags & O_CREAT) {
+        va_list args;
+        va_start(args, flags);
+        mode_t mode = va_arg(args, mode_t);
+        va_end(args);
+        return original_open(pathname, flags, mode);
+    } else {
+        return original_open(pathname, flags);
+    }
 }
+
 
 /*
 int openat(int dirfd, const char *pathname, int flags, ...)
