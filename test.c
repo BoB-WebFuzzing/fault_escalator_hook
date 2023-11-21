@@ -129,7 +129,7 @@ int access(const char *pathname, int mode)
         fclose(po);
 
         // 대체 했으면 curl로 전송해야함
-        FILE po2 = fopen("/tmp/packet.out", "r");
+        FILE *po2 = fopen("/tmp/packet.out", "r");
         if (po2)
         {
             printf("Opened edited /tmp/packet.out\n");
