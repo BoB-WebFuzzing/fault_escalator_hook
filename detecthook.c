@@ -219,9 +219,6 @@ ssize_t read(int fd, void *buf, size_t count)
 // 파일 열기 플래그에 대한 상수 정의
 #define O_CREAT 0100
 
-// 파일 모드에 대한 타입 정의 (단순히 int로 가정)
-typedef int mode_t;
-
 int open(const char *pathname, int flags, ...) {
     int (*original_open)(const char *, int, ...);
     original_open = dlsym(RTLD_NEXT, "open");
