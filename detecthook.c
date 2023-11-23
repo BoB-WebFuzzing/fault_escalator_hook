@@ -8,6 +8,11 @@
 #include <stdbool.h>
 #include <sys/types.h>
 
+
+#include <netinet/in.h>
+#include <unistd.h>
+#include <arpa/inet.h>
+
 int (*original_openat)(int dirfd, const char *pathname, int flags, ...);
 
 static ssize_t (*real_recv)(int sockfd, void *buf, size_t len, int flags) = NULL;
@@ -118,6 +123,32 @@ ssize_t recv(int sockfd, void *buf, size_t len, int flags)
     }
 
     return result;
+}
+
+typedef int (*connect_type)(int, const struct sockaddr *, socklen_t);
+
+// connect 함수 후킹
+int connect(int sockfd, const struct sockaddr *addr, socklen_t addrlen) {
+    // 원래의 connect 함수 가져오기
+    connect_type orig_connect = (connect_type)dlsym(RTLD_NEXT, "connect");
+
+    // IP 주소와 포트 번호 가져오기
+    char ip_address[INET_ADDRSTRLEN];
+    struct sockaddr_in *saddr = (struct sockaddr_in *)addr;
+    inet_ntop(AF_INET, &(saddr->sin_addr), ip_address, INET_ADDRSTRLEN);
+    int port = ntohs(saddr->sin_port);
+
+    const char *target_ip = "127.0.0.1";
+    const int target_port = 5000;
+
+    // IP 주소와 포트 번호가 원하는 것과 같을 때 출력
+    if (strcmp(ip_address, target_ip) == 0 && port == target_port){
+        printf("connect detected! \n");
+        SendSignal();
+    }
+
+    // 원래의 connect 함수 호출
+    return orig_connect(sockfd, addr, addrlen);
 }
 
 ssize_t write(int fd, const void *buf, size_t count)
